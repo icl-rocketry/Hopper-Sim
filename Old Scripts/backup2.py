@@ -156,7 +156,7 @@ B = lambdify(([(x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, 
 #------------------- SIMULATION -------------------#
 
 def system(t, y, u):
-    return A(y, u) @ y
+    return A(y, u) @ y + B(y, u) @ u
 
 def nlnsystem(t, y, u):
     return nln(y, u)

@@ -11,8 +11,8 @@ x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, Iyy, Izz, xCG, y
 Fpx, Fpy, Fpz = symbols('Fpx Fpy Fpz')
 
 # Trajectory Formulation
-ts = 40 # Simulation time (s)
-dt = 0.01 # Time step (s)
+ts = 10 # Simulation time (s)
+dt = 0.0001 # Time step (s)
 t = np.linspace(0, ts, int(ts/dt)) # Time Vector
 
 maxThrust = 2500 # Maximum Hopper Engine Thrust (N)
@@ -143,6 +143,9 @@ controlFunction = Matrix([[xx],
             [Fpx/m + Fgb[0] - (q*zz - r*yy)],
             [Fpy/m + Fgb[1] - (r*xx - p*zz)],
             [Fpz/m + Fgb[2] - (p*yy - q*xx)],
+            [p],
+            [q],
+            [r],
             [(moment[0] - (q*r*(Izz - Iyy)))/Ixx], 
             [(moment[1] - (r*p*(Ixx - Izz)))/Iyy],
             [(moment[2] - (p*q*(Iyy - Ixx)))/Izz]])
@@ -151,7 +154,7 @@ controlFunction = Matrix([[xx],
 nln = lambdify(([(x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, Iyy, Izz, xCG, yCG, zCG), (Fpx, Fpy, Fpz)]), stateFunction, "scipy")
 
 # Linearisation for LQR Control -> need to do in Earth-Fixed Frame
-jA = controlFunction.jacobian([x, y, z, xx, yy, zz, p, q, r])
+jA = controlFunction.jacobian([x, y, z, xx, yy, zz, d, e, f, p, q, r])
 jB = controlFunction.jacobian([Fpx, Fpy, Fpz])
 
 A = lambdify(([(x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, Iyy, Izz, xCG, yCG, zCG), (Fpx, Fpy, Fpz)]), jA, "scipy")
@@ -176,8 +179,6 @@ def hit_ground(y):
 
 # Controllability Check
 def controllabilityCheck(A, B):
-    
-    #NOTE: Roll is uncontrollable, roll rate is
     
     C = B
     for i in range(1,len(A)):
@@ -206,19 +207,22 @@ if __name__ == "__main__":
     # Reference Setpoints in Earth-Fixed Frame
     x_ref = 0
     y_ref = 0
-    z_ref = 1 # Target 1 m above ground
+    z_ref = 0 # Target 1 m above ground
     xx_ref = 0
     yy_ref = 0
-    zz_ref = 5
+    zz_ref = 0
+    d_ref = 0
+    e_ref = 0
+    f_ref = 0
     dd_ref = 0
     ee_ref = 0
     ff_ref = 0
     
-    ref = np.array([x_ref, y_ref, z_ref, xx_ref, yy_ref, zz_ref, dd_ref, ee_ref, ff_ref])
+    ref = np.array([x_ref, y_ref, z_ref, xx_ref, yy_ref, zz_ref, d_ref, e_ref, f_ref, dd_ref, ee_ref, ff_ref])
     
     # Use Bryson's rule to find optimal Q and R       
-    Q = np.diag([1,1,0.1,1,1, 0.5, 1, 1, 1]) #NOTE: Maximum allowable value = 0 -> Q_i = 1
-    #Q = np.eye(9)
+    #Q = np.diag([1,1,0.1,1,1, 0.5, 1, 1, 1, 1, 1, 1]) #NOTE: Maximum allowable value = 0 -> Q_i = 1
+    Q = np.eye(12)
     R = np.eye(3) 
 
     
@@ -228,9 +232,8 @@ if __name__ == "__main__":
         x0 = temp.y[:,-1] # Update State Vector
         
         # Convert body fixed states to earth fixed states
-        controlState = np.array(x0[0:6])
-        controlState = np.append(controlState, x0[9:12])
-        
+        controlState = np.array([x0[0:12]])
+
         # Check if hopper has hit the ground, exit simulation if so
         if (hit_ground(x0) == 0):
             break
@@ -248,10 +251,12 @@ if __name__ == "__main__":
             u = -K @ error.T # Add anti-windup here       
         
             # Control Output Saturation
-            u = np.clip(u, 0, maxThrust)
+            u = np.clip(u, 0.3*maxThrust, maxThrust)
 
             # Update Control Input
-            u0 = [u[0], u[1], u[2]]  
+            u0[0] = u[0]
+            u0[1] = u[1]
+            u0[2] = u[2]            
 
         else:
             u0[0] = 0
@@ -283,7 +288,6 @@ if __name__ == "__main__":
     ax.set_zlabel('z')
     ax.set_title('3D Trajectory')
 
-    """
     # Velocity Plots
     plt.figure(2)
     for i in range(3,6):
@@ -340,18 +344,5 @@ if __name__ == "__main__":
     plt.figure(9)
     plt.plot(t, result[:,15])
     plt.title("Mass Decay")
-    """
- 
-    titles2 = ["Fpx", "Fpy", "Fpz"]
- 
-    plt.figure(10)
-    for i in range(0,3):
-        plt.subplot(3, 1, i+1)
-        plt.title(titles2[i])
-        plt.plot(t, controls[:,i])
-    
-    
-    plt.figure(11)
-    plt.plot(t, zz_ref - result[:,2])
     
     plt.show()
