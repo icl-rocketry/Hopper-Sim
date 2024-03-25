@@ -145,18 +145,21 @@ controlFunction = Matrix([[xx],
             [Fpz/m + Fgb[2] - (p*yy - q*xx)],
             [(moment[0] - (q*r*(Izz - Iyy)))/Ixx], 
             [(moment[1] - (r*p*(Ixx - Izz)))/Iyy],
-            [(moment[2] - (p*q*(Iyy - Ixx)))/Izz]])
+            [(moment[2] - (p*q*(Iyy - Ixx)))/Izz],
+            [p + (q*sin(phi) + r*cos(phi))*tan(theta)],
+            [(q*sin(phi) + r*cos(phi))/cos(theta)]])
 
 # Create ananonymous function for the non-linear system
 nln = lambdify(([(x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, Iyy, Izz, xCG, yCG, zCG), (Fpx, Fpy, Fpz)]), stateFunction, "scipy")
 
 # Linearisation for LQR Control -> need to do in Earth-Fixed Frame
-jA = controlFunction.jacobian([x, y, z, xx, yy, zz, p, q, r])
+jA = controlFunction.jacobian([x, y, z, xx, yy, zz, p, q, r, phi, psi])
 jB = controlFunction.jacobian([Fpx, Fpy, Fpz])
 
 A = lambdify(([(x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, Iyy, Izz, xCG, yCG, zCG), (Fpx, Fpy, Fpz)]), jA, "scipy")
 B = lambdify(([(x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, Iyy, Izz, xCG, yCG, zCG), (Fpx, Fpy, Fpz)]), jB, "scipy")
 
+C = eye(11) # Identity Matrix for Observerability Check
 
 #------------------- SIMULATION -------------------#
 
@@ -177,7 +180,7 @@ def hit_ground(y):
 # Controllability Check
 def controllabilityCheck(A, B):
     
-    #NOTE: Roll is uncontrollable, roll rate is
+    #NOTE: Theta (pitch) is not controllable
     
     C = B
     for i in range(1,len(A)):
@@ -195,7 +198,21 @@ def controllabilityCheck(A, B):
     return 0
 
 # Observerability Check
-def observerabilityCheck():
+def observerabilityCheck(A, C):
+    
+    O = C
+    for i in range(1,len(A)):
+        O = np.vstack((O, C @ (A**i)))
+
+    rank = np.linalg.matrix_rank(O)
+    size = len(A)
+    
+    if rank != size:
+        print("Rank of Observability Matrix: " + str(rank) + "\n"
+              "Size of Matrix A: " + str(size) + "\n"
+              "System is not observable!")
+        sys.exit()
+        
     return 0
 
 if __name__ == "__main__":
@@ -213,23 +230,27 @@ if __name__ == "__main__":
     dd_ref = 0
     ee_ref = 0
     ff_ref = 0
+    phi_ref = 0
+    psi_ref = 0
     
-    ref = np.array([x_ref, y_ref, z_ref, xx_ref, yy_ref, zz_ref, dd_ref, ee_ref, ff_ref])
+    ref = np.array([x_ref, y_ref, z_ref, xx_ref, yy_ref, zz_ref, dd_ref, ee_ref, ff_ref, phi_ref, psi_ref])
     
     # Use Bryson's rule to find optimal Q and R       
-    Q = np.diag([1,1,0.1,1,1, 0.5, 1, 1, 1]) #NOTE: Maximum allowable value = 0 -> Q_i = 1
+    Q = np.diag([1,1,0.1,1,1, 0.5, 1, 1, 1, 1, 1]) #NOTE: Maximum allowable value = 0 -> Q_i = 1
     #Q = np.eye(9)
     R = np.eye(3) 
 
     
     for i in range(len(t)-1):
         
-        temp = sc.integrate.solve_ivp(nlinsystem, (t[i], t[i+1]), x0, args=(u0,), method='RK45')
+        temp = sc.integrate.solve_ivp(nlinsystem, (t[i], t[i+1]), x0, args=(u0,), method='RK45', t_eval=[t[i+1]])
         x0 = temp.y[:,-1] # Update State Vector
         
         # Convert body fixed states to earth fixed states
         controlState = np.array(x0[0:6])
         controlState = np.append(controlState, x0[9:12])
+        controlState = np.append(controlState, x0[12])
+        controlState = np.append(controlState, x0[14])
         
         # Check if hopper has hit the ground, exit simulation if so
         if (hit_ground(x0) == 0):
@@ -240,6 +261,7 @@ if __name__ == "__main__":
             
             # Check Controllability
             controllabilityCheck(A(x0, u0), B(x0, u0))
+            #observerabilityCheck(A(x0, u0), C)
             
             K, S, E = ct.lqr(A(x0, u0), B(x0, u0), Q, R)  # LQR Controller to find optimal K for given Q and R
             
