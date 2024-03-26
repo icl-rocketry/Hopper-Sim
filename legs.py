@@ -2,28 +2,20 @@ import trusspy as tp
 import numpy as np
 from sympy import *
 from math import *
-
-# Leg geometry - refer to notebook or slides
-
-xu = 200 * 0.001
-yu = 200 * 0.001
-zu = -212 * 0.001
-
-yg = -700 * 0.001
-zg = -713 * 0.001
-
-wu = 440 * 0.001
+import matplotlib.pyplot as plt
 
 # Tip over analysis
 
+#'''
 g = 9.81
 m = 150
-v = 1
-hcg = 1200 * 0.001
-Ig = 2.7 * 10**10 # gmm^2
-Ig = (Ig/1000) / 1000**2 
+v = 2.198
+hcg = 1300 * 0.001
+Ig = 2.7 * 10**10 # gmm^2 - taken from the concept 1 assembly CAD, should be accurate enough
+Ig = (Ig/1000) / 1000**2  # unit conversion kgm^2
+square_width = 1.4
 
-r = sqrt(hcg**2 + ((sqrt(2)/4) * (2*yg + wu))**2)
+r = sqrt(hcg**2 + (square_width/2)**2)
 print("r = ", r)
 
 I0 = Ig + m*r**2
@@ -32,36 +24,132 @@ print("I0 = ", I0)
 thetadot = m*v*hcg / (Ig + m*r**2)
 print("thetadot = ", thetadot)
 
-factor = (I0*thetadot**2 + 2*m*g*hcg) / (2*m*g)
-#print("factor = ", factor)
+total_energy = 0.5*I0*thetadot**2 + m*g*hcg
+print("total energy = ", total_energy)
 
-tip_factor = factor/r
-print("tip_factor = ", tip_factor)
+tipover_critical_energy = m*g*r
+print("tipover critical energy = ", tipover_critical_energy)
 
-tipping_angle = atan((sqrt(2)/4) * (2*abs(yg) + wu)/hcg) * 180 / pi
+v_critical = sqrt(2*m*g*(r-hcg)/I0) * (Ig + m*r**2) / (m*hcg)
+print("v_critical = ", v_critical, " m/s")
+
+tipping_angle = atan(0.5*square_width/hcg) * 180 / pi
 print("tipping angle = ", tipping_angle)
 
-max_width = wu + 2*abs(yg)
+max_width = sqrt(2) * square_width
 print("max_width = ", max_width)
 
-square_width = max_width * sqrt(2)/2
-print("square_width = ", square_width)
+def tip_v(sq_width,h_cg):
+    global Ig
+    global g
+    global m
 
-# sizes
+    r = sqrt(h_cg**2 + (sq_width/2)**2)
+    I0 = Ig + m*r**2
+    tip_v = sqrt(2*g*I0*(r-h_cg)/(m*h_cg**2))
+    return tip_v
 
-main_strut_length = sqrt(yg**2+zg**2)
-side_strut_length = sqrt(xu**2+(yu-yg)**2+(zu-zg)**2)
-
-strut_angle = atan(yg/zg) * 180 / pi
+def tip_angle(sq_width,h_cg):
+    return atan(0.5*sq_width/hcg) * 180 / pi
 
 
-print("main_strut_length = ", main_strut_length)
-print("side_strut_length = ", side_strut_length)
-print("strut_angle = ", strut_angle)
+#'''
+
+#'''
+sq_widths = np.arange(0.5,2,0.01)
+tip_vs = [tip_v(sq_widths[i],hcg) for i in range(len(sq_widths))]
+tip_angles = [tip_angle(sq_widths[i],hcg) for i in range(len(sq_widths))]
+
+plt.xlabel("square width (m)")
+plt.ylabel("critical tip velocity")
+plt.title(f"Tip velocity vs width with h_cg = {hcg} m")
+plt.grid(which='major', color='k', linestyle='-', linewidth=0.5)
+plt.grid(which='minor', color='k', linestyle='-', linewidth=0.05)
+plt.minorticks_on()
+plt.plot(sq_widths,tip_vs)
+plt.show()
+
+plt.xlabel("square width (m)")
+plt.ylabel("tipping angle (degrees)")
+plt.title(f"tip angle vs width with h_cg = {hcg} m")
+plt.plot(sq_widths,tip_angles)
+plt.grid(which='major', color='k', linestyle='-', linewidth=0.5)
+plt.grid(which='minor', color='k', linestyle='-', linewidth=0.05)
+plt.minorticks_on()
+plt.show()
+#'''
+
+
+
+# CAD sizing calculations
+
+h = 312
+d = 50
+w = 90
+bolt_offset = 4.191
+l_top = 500
+
+print(" ")
+print(f"CAD sizing stuff below, h = {h}, d = {d}, w = {w}, bolt offset = {bolt_offset}, top plate width = {l_top}")
+
+
+x = 1230*cos(55*pi/180) + d + 2*bolt_offset*cos(35*pi/180)
+y = w
+z = 1230*sin(55*pi/180) - h - (30-18.26) - 2*bolt_offset*sin(35*pi/180) 
+
+print(f"x = {x}, y = {y}, z = {z}")
+print(" ")
+
+def ls():
+    global x
+    global y
+    global z
+    ls = sqrt(x**2 + y**2 + z**2)
+    print("side_strut_cad_length = ", ls)
+    return ls
+    
+def w_lsfix(ls):
+    global x
+    global y
+    global z
+    w_lsfix = sqrt(ls**2 - x**2 - z**2)
+    print(f"w if ls equals {ls} = ", w_lsfix)
+    return w_lsfix
+
+lsfree = ls()
+
+if (round(lsfree,0)-28-28)%1.5 == 0:  # this equality checks if the threads align i.e. after substracting two 28 mm for the rod ends, is the length a multiple of pitch 1.5
+    w_ls_set = w_lsfix(round(lsfree,0))
+    threaded_rod_length = round(lsfree,0) - 28 - 28
+elif (round(lsfree,0)-28-28)%1.5 == 1:
+    w_ls_set = w_lsfix(round(lsfree,0) - 1)
+    threaded_rod_length = round(lsfree,0) - 1 - 28 - 28
+else:
+    w_ls_set = w_lsfix(round(lsfree,0) + 1)
+    threaded_rod_length = round(lsfree,0) + 1 - 28 - 28
+
+print(f"Rod end bracket offset = {0.5*l_top - 27 - d + 7}")
+print(f"Rod end bracket width offset = {w_ls_set + 32.4}")
+print("threaded rod length = ", threaded_rod_length)
+rod_end_c_channel_angle = atan(w_ls_set/x) * 180 / pi
+print("rod end c channel angle = ", rod_end_c_channel_angle)
+
+
 
 
 
 # Stiffness analysis using trusspy
+
+# Approximate Leg geometry - refer to notebook or slides
+
+xu = 50 * 0.001
+yu = 200 * 0.001
+zu = -300 * 0.001
+
+yg = -700 * 0.001
+zg = -1000 * 0.001
+
+wu = 440 * 0.001
 
 M = tp.Model(logfile=True)
 
