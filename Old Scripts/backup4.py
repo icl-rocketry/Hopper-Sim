@@ -2,6 +2,7 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from casadi import *
 from sympy import *
 import scipy as sc
 import control as ct
@@ -12,11 +13,11 @@ Fpx, Fpy, Fpz = symbols('Fpx Fpy Fpz')
 
 # Trajectory Formulation
 ts = 40 # Simulation time (s)
-dt = 0.01 # Time step (s)
+dt = 0.001 # Time step (s)
 t = np.linspace(0, ts, int(ts/dt)) # Time Vector
 
 maxThrust = 2500 # Maximum Hopper Engine Thrust (N)
-m0 = 115 # Initial Mass (kg)
+m0 = 125 # Initial Mass (kg)
 m_dry = 100 # Dry Mass (kg)
 Fge = [0, 0, -9.81] # Gravity Vector in Earth-Fixed Axes (m/s^2)
 I_initial = [27.920, 27.960, 7.87870] # Inertia Tensor (kg*m^2)
@@ -27,6 +28,8 @@ engineCOM = [2, 0, 0] # Engine Center of Mass (m)
 momentArm = np.subtract(rocketCOM, engineCOM) # Moment Arm Vector (m)
 moment = np.cross(momentArm, [Fpx, Fpy, Fpz]) # Moment Vector (N*m), symbolic this shit pls
 
+
+#------------------- STATE/CONTROL VARIABLES -------------------#
 
 """ State Vector:
 0: x - Longitudinal Position in Body-Fixed Axes (m)
@@ -87,15 +90,16 @@ Control Vector:
 u0 = np.zeros(3) # Control Vector
 
 # Initial Control (Force) Vector
-u0[0] = 0
-u0[1] = 0
-u0[2] = 2500
+u0 = [0, 0, 2500]
+
+
+#------------------- ROTATIONAL MATRIX -------------------#
 
 # https://society-of-flight-test-engineers.github.io/handbook-2013/axis-systems-and-transformations-raw.html
 # https://www.aircraftflightmechanics.com/EoMs/EulerTransforms.html
 
 # Earth to Body Transformation Matrix
-Teb = Matrix([[cos(theta)*cos(phi), sin(phi)*sin(theta)*cos(psi) - cos(phi)*sin(psi), cos(phi)*sin(theta)*cos(psi) + sin(phi)*sin(psi)],
+Teb = Matrix([[cos(theta)*cos(psi), sin(phi)*sin(theta)*cos(psi) - cos(phi)*sin(psi), cos(phi)*sin(theta)*cos(psi) + sin(phi)*sin(psi)],
              [cos(theta)*sin(psi), sin(phi)*sin(theta)*sin(psi) + cos(phi)*cos(psi), cos(phi)*sin(theta)*cos(psi) - sin(phi)*cos(psi)],
              [-sin(theta), sin(phi)*cos(theta), cos(phi)*cos(theta)]])
              
@@ -105,9 +109,9 @@ Teb = Matrix([[cos(theta)*cos(phi), sin(phi)*sin(theta)*cos(psi) - cos(phi)*sin(
 
 # By orthogonality, Tbe = Teb^-1
 Tbe = Teb.T
-
 Fgb = np.dot(Teb,Fge) # Gravity Vector in Body-Fixed Axes (N)
-print(moment)
+
+
 #------------------- STATE SPACE MODEL -------------------#
 
 # For the dynamics of the system, we have a set of non-linear differential equations that describe the motion of the hopper. *dot* equations
@@ -128,38 +132,47 @@ stateFunction = Matrix([[xx],
             [q*cos(phi) - r*sin(phi)],
             [(q*sin(phi) + r*cos(phi))/cos(theta)],
             [-sqrt(Fpx**2+Fpy**2+Fpz**2)/Isp], # Mass Decay, need to multiply by m here otherwise Jacobian will be incorrect
-            [((yCG - engineCOM[1])**2 + (zCG - engineCOM[2])**2) * -sqrt(Fpx**2+Fpy**2+Fpz**2)/Isp],
+            [0],
+            [0],
+            [0],
+            [0],
+            [0],
+            [0]])
+
+"""
+Rate of change of CG and Inertias 
+[((yCG - engineCOM[1])**2 + (zCG - engineCOM[2])**2) * -sqrt(Fpx**2+Fpy**2+Fpz**2)/Isp],
             [((xCG - engineCOM[0])**2 + (zCG - engineCOM[2])**2) * -sqrt(Fpx**2+Fpy**2+Fpz**2)/Isp],
             [((xCG - engineCOM[0])**2 + (yCG - engineCOM[1])**2) * -sqrt(Fpx**2+Fpy**2+Fpz**2)/Isp],
             [-0.1 * xCG],
             [0],
-            [0]])
-
+            [0]
+"""
 # However, for control purposes, we need to linearise the system around a set of operating points.
 
-controlFunction = Matrix([[xx],
-            [yy],
-            [zz],
-            [Fpx/m + Fgb[0] - (q*zz - r*yy)],
-            [Fpy/m + Fgb[1] - (r*xx - p*zz)],
-            [Fpz/m + Fgb[2] - (p*yy - q*xx)],
+controlFunction = Matrix([[zz],
             [(moment[0] - (q*r*(Izz - Iyy)))/Ixx], 
             [(moment[1] - (r*p*(Ixx - Izz)))/Iyy],
             [(moment[2] - (p*q*(Iyy - Ixx)))/Izz],
             [p + (q*sin(phi) + r*cos(phi))*tan(theta)],
+            [q*cos(phi) - r*sin(phi)],
             [(q*sin(phi) + r*cos(phi))/cos(theta)]])
 
-# Create ananonymous function for the non-linear system
+# Create ananonymous function for the non-linear system to be solved by the integrator
 nln = lambdify(([(x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, Iyy, Izz, xCG, yCG, zCG), (Fpx, Fpy, Fpz)]), stateFunction, "scipy")
 
-# Linearisation for LQR Control -> need to do in Earth-Fixed Frame
-jA = controlFunction.jacobian([x, y, z, xx, yy, zz, p, q, r, phi, psi])
+# Linearisation for LQR Control
+jA = controlFunction.jacobian([z, p, q, r, phi, theta, psi])
 jB = controlFunction.jacobian([Fpx, Fpy, Fpz])
 
 A = lambdify(([(x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, Iyy, Izz, xCG, yCG, zCG), (Fpx, Fpy, Fpz)]), jA, "scipy")
 B = lambdify(([(x, y, z, xx, yy, zz, d, e, f, p, q, r, phi, theta, psi, m, Ixx, Iyy, Izz, xCG, yCG, zCG), (Fpx, Fpy, Fpz)]), jB, "scipy")
 
-C = eye(11) # Identity Matrix for Observerability Check
+rowA, colA = jA.shape # Obtain dimensions of Jacobian Dynamics Matrix
+rowB, colB = jB.shape # Obtain dimensions of Jacobian Control Matrix
+
+C = np.diag([0, 0, 1,]) # Control Matrix
+
 
 #------------------- SIMULATION -------------------#
 
@@ -167,15 +180,27 @@ C = eye(11) # Identity Matrix for Observerability Check
 #   return np.array(A(y, u) @ y + B(y, u) @ u).flatten()
 
 def nlinsystem(t, y, u):
+    """
+    Non-linear system of equations for the hopper dynamics. An anonymous function is created to solve the system of equations above
+    """
     return np.array(nln(y,u)).flatten()
 
-# Event when the hopper hits the ground, only works when evaluating more than 1 step between time span
-def hit_ground(y):
-    if (y[2] < 0):
-        print("Hopper has hit the ground.")
-        return 0
+outOfFuel = False
+
+def thrustDecay(u, decayTime, dt, s, i):
+    """
+    This function simulates the linear decay of thrust output as the hopper runs out of fuel.
+    ------------------------------------------------------------------------------------------------
+    u: Thrust Vector before mass depletion
+    decayTime: Time to reach zero-thrust(s)
+    ------------------------------------------------------------------------------------------------
+    """
+    if (i -s) >= decayTime:
+        outOfFuel = True
+        return np.array([0, 0, 0])
     else:
-        return 1
+        return np.array([u[0] - u[0]*i*dt/(decayTime), u[1] - u[1]*i*dt/(decayTime), u[2] - u[2]*i*dt/(decayTime)])
+
 
 # Controllability Check
 def controllabilityCheck(A, B):
@@ -204,7 +229,7 @@ def observerabilityCheck(A, C):
     for i in range(1,len(A)):
         O = np.vstack((O, C @ (A**i)))
 
-    rank = np.linalg.matrix_rank(O)
+    rank = np.linalg.matrix_rank(O) # Not working rn
     size = len(A)
     
     if rank != size:
@@ -215,31 +240,62 @@ def observerabilityCheck(A, C):
         
     return 0
 
+"""
+
+"""
+
+
 if __name__ == "__main__":
 
-    result = x0 # 
+    result = x0 # Result Vector
     controls = u0 # Control Vector
     
     # Reference Setpoints in Earth-Fixed Frame
-    x_ref = 0
-    y_ref = 0
-    z_ref = 10 # Target 1 m above ground
-    xx_ref = 0
-    yy_ref = 0
-    zz_ref = 5
-    dd_ref = 0
-    ee_ref = 0
-    ff_ref = 0
+    z_ref = 1 # Target Altitude: 1 m above ground
+    p_ref = 0
+    q_ref = 0
+    r_ref = 0
     phi_ref = 0
+    theta_ref = 0
     psi_ref = 0
     
-    ref = np.array([x_ref, y_ref, z_ref, xx_ref, yy_ref, zz_ref, dd_ref, ee_ref, ff_ref, phi_ref, psi_ref])
+    ref = np.array([z_ref, q_ref, r_ref, phi_ref, theta_ref, psi_ref])
     
     # Use Bryson's rule to find optimal Q and R       
-    Q = np.diag([1,1,0.1,1,1, 0.5, 1, 1, 1, 1, 1]) #NOTE: Maximum allowable value = 0 -> Q_i = 1
-    #Q = np.eye(9)
+    Q = np.diag([5, 1, 1, 1, 1, 1, 1]) #NOTE: Maximum allowable value = 0 -> Q_i = 1
     R = np.eye(3) 
 
+    
+    """
+    [FUTURE] Hover Control:
+    The flight should be divided into three phases:
+    1. Ascent: Ascend to 1m in 2 seconds
+    2. Hover: 10 second hover at 1m (1s buffer)
+    3. Descent: Safely land at 0m in 2 seconds
+    
+    """
+    
+    ascentTime = 2
+    hoverTime = 11
+    descentTime = 2
+    
+    ascent = True
+    hover = False
+    descent = False
+  
+    def ascentControl(x0):
+        
+        return 0
+
+    def hoverControl():
+        return 0
+
+    def descentControl():
+        return 0
+  
+    s = 0
+    
+#------------------- SIMULATION LOOP -------------------#
     
     for i in range(len(t)-1):
         
@@ -247,47 +303,50 @@ if __name__ == "__main__":
         x0 = temp.y[:,-1] # Update State Vector
         
         # Convert body fixed states to earth fixed states
-        controlState = np.array(x0[0:6])
-        controlState = np.append(controlState, x0[9:12])
-        controlState = np.append(controlState, x0[12])
-        controlState = np.append(controlState, x0[14])
+        controlState = np.concatenate((x0[2:3], x0[10:12], x0[12:15]))
+
         
         # Check if hopper has hit the ground, exit simulation if so
-        if (hit_ground(x0) == 0):
-            break
+        if (x0[2] < 0):
+           print("Hopper has hit the ground.")
+           break
         
-        # Check if all fuel is depleted
+        # Check if all fuel is depleted, control if not
         if x0[15] >= m_dry:
             
-            # Check Controllability
-            controllabilityCheck(A(x0, u0), B(x0, u0))
-            #observerabilityCheck(A(x0, u0), C)
+            if (t[i] >= 2):
+                
+                # Check Controllability
+                controllabilityCheck(A(x0, u0), B(x0, u0))
+                #observerabilityCheck(A(x0, u0), C)
+                
+                K, _, _ = ct.lqr(A(x0, u0), B(x0, u0), Q, R)  # LQR Controller to find optimal K for given Q and R
+                
+                # Control Output Calculation
+                error = np.array([controlState[i] - ref[i] for i in range(len(controlState))])   
+                u = -K @ error.T # Add anti-windup here       
             
-            K, S, E = ct.lqr(A(x0, u0), B(x0, u0), Q, R)  # LQR Controller to find optimal K for given Q and R
+                # Control Output Saturation
+                u = np.clip(u, 0.3*maxThrust, maxThrust)
+
+                # Update Control Input
+                u0 = [u[0], u[1], u[2]]  
+
+            else:
+                if (s == 0):
+                    s = i # Store counter for fuel depletion
+                if (outOfFuel == False):
+                    u0 = thrustDecay(u0, 3, dt, s, i) # Simulate thrust decay
+                else:
+                    u0 = [0, 0 ,0]
+                    
+            controls = np.vstack((controls, u0)) # Store Control Inputs
             
-            # Control Output Calculation
-            error = np.array([controlState[i] - ref[i] for i in range(len(controlState))])   
-            u = -K @ error.T # Add anti-windup here       
-        
-            # Control Output Saturation
-            u = np.clip(u, 0.3*maxThrust, maxThrust)
-
-            # Update Control Input
-            u0 = [u[0], u[1], u[2]]  
-
-        else:
-            u0[0] = 0
-            u0[1] = 0
-            u0[2] = 0
-        
         result = np.vstack((result, x0)) # Store State Vector
-        controls = np.vstack((controls, u0)) # Store Control Inputs
+        
     
     # END FOR LOOP
 
-    
-    
-# Plot step responses
 
 #------------------- PLOTS -------------------#
 
@@ -357,12 +416,13 @@ if __name__ == "__main__":
         plt.subplot(3, 1, i-18)
         plt.title(titles[i])
         plt.plot(t, result[:,i])
+    """
     
     # Mass
     plt.figure(9)
     plt.plot(t, result[:,15])
     plt.title("Mass Decay")
-    """
+    
  
     titles2 = ["Fpx", "Fpy", "Fpz"]
  
@@ -374,6 +434,6 @@ if __name__ == "__main__":
     
     
     plt.figure(11)
-    plt.plot(t, zz_ref - result[:,2])
+    plt.plot(t, z_ref - result[:,2])
     
     plt.show()

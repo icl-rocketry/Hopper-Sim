@@ -1,0 +1,45 @@
+Not suspicious text file for me to organise my own thoughts and divide the task into manageable subtasks
+
+Man I'm so useless
+
+Dynamics
+- Get actual numbers DONE
+- Make sure dynamics are actually correct
+    - I think the dynamics are correct, just that I have really wonky maths (i.e. Thrust instantly becomes 0 after fuel depletion -> causes thing to spin)
+
+FOR FUTURE (HOP SCRIPT)
+
+- Implement flight into 3 phases (Ascent, Hover, Descent)
+
+- The hopper will go up 8mm because initial thrust is 1500N -> need to simulate ascent phase
+
+solver -> state -> phase of flight -> new force vector
+                   -- Controller --
+
+ASCENT 
+- Max thrust up to 25 m
+- Then decelerate to 50 m steadily
+- Controlled States: Angles?
+
+HOVER 
+- Hover at steady altitude (50 m)
+- Controlled States: ???
+- Need thrust
+
+DESCENT 
+- Less thrust
+
+
+Control System
+- Controllability Check DONE
+- Observability Check NOT DONE
+- Have a controller for each phase -> each should control different states?
+- Q matrix tuning
+
+
+External Disturbances
+- Add external disturbances and then pass through Kalman Filter to simulate sensor data
+
+
+
+

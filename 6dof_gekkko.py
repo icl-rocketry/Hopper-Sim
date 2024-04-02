@@ -194,3 +194,5 @@ fig = plt.figure()
 ax = plt.axes(projection="3d")
 ax.plot3D(xe.value, ye.value, ze.value)
 ax.set_zlim(0, max(ze.value)*1.1)
+
+plt.show()
