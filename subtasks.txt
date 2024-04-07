@@ -41,5 +41,12 @@ External Disturbances
 - Add external disturbances and then pass through Kalman Filter to simulate sensor data
 
 
+Really far into the FUTURE
+- Model fuel slosh as pendulum
+- Add actuator delay
+
+GUI and Animation 
+
+
 
 
