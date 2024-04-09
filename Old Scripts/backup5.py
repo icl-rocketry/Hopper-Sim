@@ -97,7 +97,7 @@ x0[21] = 0
 u0 = np.zeros(3) 
 
 # Initial Control (Force) Vector in BODY-FIXED Axes
-u0 = [2500, 0, 0]
+u0 = [2500, 0, 2500]
 
 
 #------------------- ROTATIONAL MATRIX -------------------#
@@ -418,7 +418,7 @@ def getPlotSize(earthTraj, sizeMultiple=1.1):
     if max(xRange, yRange, zRange) == 0:
         axisDimensions = 1.0 # In the event of a stationary hopper
     else:
-        axisDimensions = [xRange * sizeMultiple, yRange * sizeMultiple, zRange* sizeMultiple] # Ensure all axes are of equal length
+        axisDimensions = max([xRange, yRange, zRange]) * sizeMultiple # Ensure all axes are of equal length
     
     return axisDimensions, centerOfPlot   
 
@@ -432,9 +432,11 @@ def createFigure(axisDimensions, centreOfPlot):
     ax.set_ylabel('y (m)')
     ax.set_zlabel('z (m)')
     
-    ax.set_xlim(centreOfPlot[0] - axisDimensions[0]/2, centreOfPlot[0] + axisDimensions[0]/2)
-    ax.set_ylim(centreOfPlot[1] - axisDimensions[1]/2, centreOfPlot[1] + axisDimensions[1]/2)
-    ax.set_zlim(0, centreOfPlot[2] + axisDimensions[2]/2)
+    halfDim = axisDimensions/2
+    
+    ax.set_xlim(centreOfPlot[0] - halfDim, centreOfPlot[0] + halfDim)
+    ax.set_ylim(centreOfPlot[1] - halfDim, centreOfPlot[1] + halfDim)
+    ax.set_zlim(centreOfPlot[2] - halfDim, centreOfPlot[2] + halfDim)
     ax.set_title('Hopper Trajectory')
     
     return fig, ax
@@ -478,7 +480,7 @@ def flightAnimation(earthTraj, dt, hopperLength=0):
         time_text.set_text(time_template % (i * dt)) # Update time label
         line_traj.set_data(earthTraj[:i, 0], earthTraj[:i, 1]) # Update trajectory
         line_traj.set_3d_properties(earthTraj[:i, 2]) # Update trajectory
-        return line_traj, time_text, # Return iterable artists (to be drawn)
+        return line_traj, time_text,
     
     # call the animator.  blit=True means only re-draw the parts that have changed.
     ani = animation.FuncAnimation(fig, update_traj, init_func=init, frames=len(earthTraj), interval=1, blit=True)
@@ -527,9 +529,6 @@ if __name__ == "__main__":
             
             # Check if all fuel is depleted
             if (x0[15] >= m_dry):
-                
-                if (t[i] > 2):
-                    u0 = [0, 0, 0]
                 
                 # Ascent Phase
                 if (t[i] < ascentTime):
