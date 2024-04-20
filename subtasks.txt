@@ -50,3 +50,16 @@ GUI and Animation
 
 
 
+Ascent controller
+Descent controller
+
+These two controllers should be altitude controller usign a setpoint
+
+Setpoint of altitude -> how to model this?
+
+Kalman filter + add noise
+
+
+GUI 
+Animation should show: Thrust Vector with changing magnitude -> work out the maths
+                       Rotation of rocket  body -> work out the maths

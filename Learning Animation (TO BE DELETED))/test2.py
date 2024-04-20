@@ -41,6 +41,7 @@ def play_animation(self, rocket_len, state_traj, control_traj, state_traj_ref=No
             if x < 0:
                 sim_horizon_ref = t
                 break
+            
     # animation
     line_traj_ref, = ax.plot(position_ref[:1, 1], position_ref[:1, 2], position_ref[:1, 0], linewidth=2, color='gray', alpha=0.5)
     xg_ref, yg_ref, zg_ref, xh_ref, yh_ref, zh_ref, xf_ref, yf_ref, zf_ref = position_ref[0, 3:]
@@ -91,7 +92,6 @@ def play_animation(self, rocket_len, state_traj, control_traj, state_traj_ref=No
         line_rocket_ref.set_3d_properties([xg_ref, xh_ref])
         line_force_ref.set_data([yg_ref, yf_ref], [zg_ref, zf_ref])
         line_force_ref.set_3d_properties([xg_ref, xf_ref])
-
 
         return line_traj, line_rocket, line_force, line_traj_ref, line_rocket_ref, line_force_ref,  time_text
 
