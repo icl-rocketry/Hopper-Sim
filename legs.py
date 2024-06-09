@@ -111,19 +111,19 @@ print("side_strut_length = ", side_strut_length)
 print("strut_angle = ", strut_angle)
 
 
-config = 1  #0 for long(default), 1 for short
+config = 2  #0 for long(default), 1 for short, 2 for shorter (9-6-2024)
 
-h = 312
+h = [312,312,292][config]
 d = 50
 w = 90
 l_top = 500
-l_main = [1230,1160][config]   # bolt to bolt before bolt offset
-bolt_offset = [4.191,5.778][config]   # this depends on strut angle only
-c_channel_hole_offset = [18.26, 21.315][config]   # this depends on strut angle only
-strut_angle = [35,30][config]   
+l_main = [1230,1160,940][config]   # bolt to bolt before bolt offset
+bolt_offset = [4.191,5.778,5.778][config]   # this depends on strut angle only
+c_channel_hole_offset = [18.26,21.315,21.315][config]   # this depends on strut angle only
+strut_angle = [35,30,30][config]   
 
 print(" ")
-config = ["long", "short"][config]
+config = ["long", "short", "shorter"][config]
 print(f"Config = {config}")
 print(f"CAD sizing stuff below, h = {h}, d = {d}, w = {w}, bolt offset = {bolt_offset}, top plate width = {l_top}")
 
@@ -164,44 +164,13 @@ else:
     threaded_rod_length = round(lsfree,0) + 1 - 28 - 28
 
 print(f"Rod end bracket offset = {0.5*l_top - 27 - d + 7}")
-print(f"Rod end bracket width offset = {w_ls_set + 32.4}")
+print(f"Rod end bracket width offset = {w_ls_set + 32.4 + 1.45}")
 print("threaded rod length = ", threaded_rod_length)
 rod_end_c_channel_angle = atan(w_ls_set/x) * 180 / pi
 print("rod end c channel angle = ", rod_end_c_channel_angle)
 
 
-# Stress and force analysis
-
-d = 0.01
-w_outer = 0.0508
-w_inner = 0.0381
-E = 190*10**9
-UTS_6061 = 279*10**6
-
-# put FEA results here
-F_static = 1000
-max_stress_rod = 24*10**6  # max value in FEA for conservative, in reality should be uniform in rod but isn't in the model
-max_stress_strut = -20*10**6
-max_disp = 0.968*10**(-3)
-#
-
-F_rod = max_stress_rod * pi * (d/2)**2  # conservative value
-F_rod_end_fails = 10000   # SKF M10 rod end data, rod end bearing fails before thread pullout at around 13 kN
-rod_SF = F_rod_end_fails/F_rod
-strut_SF = UTS_6061/abs(max_stress_strut)
-
-k = F_static/max_disp
-F_shock = k*sqrt(0.5*m*1*0.2/k)   #1 is effective accel at TWR 0.9, 0.2 is height of landing procedure start
-print("FEA results:")
-print(f"In {F_static} N static loading, Rod = {F_rod} N, Rod SF = {rod_SF}, Strut SF = {strut_SF}")
-print(f"Max shock load per leg = {F_shock} N")
-
-
-
-
 # Stiffness analysis using trusspy
-
-
 
 
 M = tp.Model(logfile=True)
@@ -218,13 +187,13 @@ element_type = 1  # truss
 material_type = 1  # linear-elastic
 
 youngs_modulus = 69 * 10**9
-A_large = pi * 0.035 ** 2 - pi * 0.030 ** 2
-A_small = pi * 0.015 ** 2 - pi * 0.012 ** 2
+A_large = 0.0508**2 - 0.0381**2
+A_small = pi * 0.005 ** 2 
 
 with M.Elements as ME: # link creation (not sure gpropr is yet)
-    ME.add_element(1, conn=(1, 4), geometric_properties=[A_large])#, gprop=[0.75])
-    ME.add_element(2, conn=(2, 4), geometric_properties=[A_small])#, gprop=[1])
-    ME.add_element(3, conn=(3, 4), geometric_properties=[A_small])#, gprop=[0.5])
+    ME.add_element(1, conn=[1, 4], material_properties=[200*10**9], geometric_properties=[A_large])#, gprop=[0.75])
+    ME.add_element(2, conn=[2, 4], material_properties=[69*10**9], geometric_properties=[A_small] )#, gprop=[1])
+    ME.add_element(3, conn=[3, 4], material_properties=[69*10**9], geometric_properties=[A_small] )#, gprop=[0.5])
 
     ME.assign_etype("all", element_type)
     ME.assign_mtype("all", material_type)
@@ -285,5 +254,61 @@ M.plot_movie(
 Disp = "Displacement Z"
 fig, ax = M.plot_history(nodes=[4, 4], X=Disp, Y="Force Z")
 fig.savefig("feet_Disp.png")
+
+
+
+
+# Stress and force analysis
+
+d = 0.01
+w_outer = 0.0508
+w_inner = 0.0381
+E = 190*10**9
+UTS_6061 = 279*10**6
+
+# put FEA results here
+F_static = 1000
+max_stress_rod = 18*10**6  # max value in FEA for conservative, in reality should be uniform in rod but isn't in the model
+max_stress_strut = -14*10**6
+max_disp = 0.968*10**(-3)  
+#
+
+# Additional trusspy results
+print(" ")
+
+forces = M.Results.R[pinc].element_force
+#print("trusspy element forces = ", forces)
+#note: the trusspy does not account for built in end at the top and beam bending, hence the forces are inaccurate
+
+
+
+F_rod = max_stress_rod * pi * (d/2)**2  # conservative value
+F_rod_end_fails = 10000   # SKF M10 rod end data, rod end bearing fails before thread pullout at around 13 kN
+rod_SF = F_rod_end_fails/F_rod
+strut_SF = UTS_6061/abs(max_stress_strut)
+F_strut = max_stress_strut * (w_outer**2 - w_inner**2)
+
+k = F_static/max_disp
+F_shock = k*sqrt(0.5*m*1*0.2/k)   #1 is effective accel at TWR 0.9, 0.2 is height of landing procedure start
+print("FEA results:")
+print(f"In {F_static} N static loading, Strut = {round(F_strut)} N, Rod = {round(F_rod)} N, Rod SF = {round(rod_SF)}, Strut SF = {round(strut_SF)}")
+print(f"Max shock load per leg = {F_shock} N")
+
+# with the shock load max as static load in FEA,
+F_static = F_shock
+max_stress_rod = 70*10**6  # average value in FEA (should be uniform in real life)
+max_stress_strut = -75*10**6    # this seems to be localised at a point (static 1), stress concentration from bending (or FEA issue?)
+max_disp = 0.968*10**(-3)
+#
+
+F_rod = max_stress_rod * pi * (d/2)**2  # conservative value
+F_rod_end_fails = 10000   # SKF M10 rod end data, rod end bearing fails before thread pullout at around 13 kN
+rod_SF = F_rod_end_fails/F_rod
+strut_SF = UTS_6061/abs(max_stress_strut)
+F_strut = max_stress_strut * (w_outer**2 - w_inner**2)
+
+print(f"In {round(F_static)} N static loading, Strut = {round(F_strut)} N, Rod = {round(F_rod)} N, Rod SF = {round(rod_SF,2)}, Strut SF = {round(strut_SF,2)}")
+
 print(" ")
 print("done")
+
