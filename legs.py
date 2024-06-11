@@ -111,19 +111,19 @@ print("side_strut_length = ", side_strut_length)
 print("strut_angle = ", strut_angle)
 
 
-config = 2  #0 for long(default), 1 for short, 2 for shorter (9-6-2024)
+config = 3  #0 for long(default), 1 for short, 2 for shorter (9-6-2024), 3 for 200 tank-thrust plate distance (200PD)
 
-h = [312,312,292][config]
+h = [312,312,292,215][config]
 d = 50
-w = 90
-l_top = 500
-l_main = [1230,1160,940][config]   # bolt to bolt before bolt offset
-bolt_offset = [4.191,5.778,5.778][config]   # this depends on strut angle only
-c_channel_hole_offset = [18.26,21.315,21.315][config]   # this depends on strut angle only
-strut_angle = [35,30,30][config]   
+w = [90,90,90,80][config]
+l_top = [500,500,500,450][config]
+l_main = [1230,1160,940,840][config]   # bolt to bolt before bolt offset
+bolt_offset = [4.191,5.778,5.778,5.778][config]   # this depends on strut angle only
+c_channel_hole_offset = [18.26,21.315,21.315,21.315][config]   # this depends on strut angle only
+strut_angle = [35,30,30,30][config]   
 
 print(" ")
-config = ["long", "short", "shorter"][config]
+config = ["long", "short", "shorter", "200PD"][config]
 print(f"Config = {config}")
 print(f"CAD sizing stuff below, h = {h}, d = {d}, w = {w}, bolt offset = {bolt_offset}, top plate width = {l_top}")
 
