@@ -4,10 +4,10 @@ clf
 close all
 load("hopper_sim.mat")
 set(0,'defaulttextInterpreter','latex','DefaultLegendInterpreter','latex','DefaultLineLineWidth', 5,'defaultAxesFontSize',11);
-% out = sim('HopperPlant_Current.slx','StopTime', '300');
-% euler_angles=get(out,"euler_angles");
-% position_earth=get(out,'position');
-% save("hopper_sim","euler_angles","position_earth")
+out = sim('HopperPlant_Current.slx','StopTime', '300');
+euler_angles=get(out,"euler_angles");
+position_earth=get(out,'position');
+save("hopper_sim","euler_angles","position_earth")
 time_array=euler_angles.time;
 euler_angles_array=euler_angles.data;
 position_earth_array=position_earth.data;
