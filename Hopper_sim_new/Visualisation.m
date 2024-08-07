@@ -4,14 +4,14 @@ clf
 close all
 load("hopper_sim.mat")
 set(0,'defaulttextInterpreter','latex','DefaultLegendInterpreter','latex','DefaultLineLineWidth', 5,'defaultAxesFontSize',11);
-out = sim('HopperPlant_Current.slx','StopTime', '300');
-euler_angles=get(out,"euler_angles");
-position_earth=get(out,'position');
-save("hopper_sim","euler_angles","position_earth")
+% out = sim('HopperPlant_Current.slx','StopTime', '300');
+% euler_angles=get(out,"euler_angles");
+% position_earth=get(out,'position');
+% save("hopper_sim","euler_angles","position_earth")
 time_array=euler_angles.time;
 euler_angles_array=euler_angles.data;
 position_earth_array=position_earth.data;
-sideLength = 0.5; % Side length of the cube
+Length = [0.5 0.5 1.5]; % Side length of the cube
 figure;
 axis equal;
  % xlim([-5 5])
@@ -38,49 +38,78 @@ for i = 1:length(time_array)
     -sin(theta),sin(phi)*cos(theta), cos(phi)*cos(theta)]';
 
     cla; % Clear current axes
-    plotCube3D(cg, sideLength,T_etob);
+    plotRocket3D(cg, Length,T_etob);
     pause(0.001);
 end
 
-function plotCube3D(cg, sideLength,Tetob)
-    % Define the half side length
-    halfSide = sideLength / 2;
+function plotRocket3D(cg, lengths, Tetob)
+    % lengths is a vector [length, width, height]
+    length = lengths(1);
+    width = lengths(2);
+    height = lengths(3);
 
-    % Define the vertices of the cube
+    % Define the half side lengths
+    halfLength = length / 2;
+    halfWidth = width / 2;
+    halfHeight = height / 2;
+
+    % Define the vertices of the cuboid
     vertices = [
-        -halfSide, -halfSide, -halfSide;
-        halfSide, -halfSide, -halfSide;
-        halfSide, halfSide, -halfSide;
-        -halfSide, halfSide, -halfSide;
-        -halfSide, -halfSide, halfSide;
-        halfSide, -halfSide, halfSide;
-        halfSide, halfSide, halfSide;
-        -halfSide, halfSide, halfSide;
+        -halfLength, -halfWidth, -halfHeight;
+        halfLength, -halfWidth, -halfHeight;
+        halfLength, halfWidth, -halfHeight;
+        -halfLength, halfWidth, -halfHeight;
+        -halfLength, -halfWidth, halfHeight;
+        halfLength, -halfWidth, halfHeight;
+        halfLength, halfWidth, halfHeight;
+        -halfLength, halfWidth, halfHeight;
     ];
 
-    [row ~]=size(vertices);
-
-    for v=1:row
-        newVertices(v,:)=Tetob*vertices(v,:)';
-    end 
+    % Transform vertices using Tetob matrix
+    [row, ~] = size(vertices);
+    newVertices = zeros(size(vertices));
+    for v = 1:row
+        newVertices(v, :) = (Tetob * vertices(v, :)')';
+    end
 
     % Shift vertices to be centered at cg
     newVertices = newVertices + cg;
 
-    % Define the edges of the cube
+    % Define the edges of the cuboid
     edges = [
         1, 2; 2, 3; 3, 4; 4, 1; % bottom edges
         5, 6; 6, 7; 7, 8; 8, 5; % top edges
         1, 5; 2, 6; 3, 7; 4, 8; % vertical edges
     ];
 
-    % Plot the cube
+    nose=Tetob*[0;0;halfHeight+0.5]+cg';
+
+    % Plot body
     hold on;
     for i = 1:size(edges, 1)
-        plot3( newVertices(edges(i, :), 1),  newVertices(edges(i, :), 2),  newVertices(edges(i, :), 3), 'b');
+        plot3(newVertices(edges(i, :), 1), newVertices(edges(i, :), 2), newVertices(edges(i, :), 3), 'b');
     end
+
+    %plot nose
+    for j=5:row
+    plot3([nose(1);newVertices(j,1)],[nose(2);newVertices(j,2)],[nose(3);newVertices(j,3)],'r');
+    end 
     hold off;
+    
+   support= [
+        -halfLength, -halfWidth, -halfHeight;
+        halfLength, -halfWidth, -halfHeight;
+        halfLength, halfWidth, -halfHeight;
+        -halfLength, halfWidth, -halfHeight;
+    ];
+    %plot landing support
+    for k=1:4
+
+    end 
+
+    %plot thrust
 end
+
 
 
 
