@@ -3,12 +3,12 @@ clc
 clf
 close all
 load("hopper_sim.mat")
-set(0,'defaulttextInterpreter','latex','DefaultLegendInterpreter','latex','DefaultLineLineWidth', 1.5,'defaultAxesFontSize',11);
-out = sim('HopperPlant_Current.slx','StopTime', '300');
-euler_angles=get(out,"euler_angles");
-position_earth=get(out,'position');
-thrust=get(out,'thrust');
-save("hopper_sim","euler_angles","position_earth","thrust")
+% set(0,'defaulttextInterpreter','latex','DefaultLegendInterpreter','latex','DefaultLineLineWidth', 1.5,'defaultAxesFontSize',11);
+% out = sim('HopperPlant_Current.slx','StopTime', '300');
+% euler_angles=get(out,"euler_angles");
+% position_earth=get(out,'position');
+% thrust=get(out,'thrust');
+% save("hopper_sim","euler_angles","position_earth","thrust")
 time_array=euler_angles.time;
 euler_angles_array=euler_angles.data;
 position_earth_array=position_earth.data;
@@ -41,7 +41,7 @@ for i = 1:length(time_array)
     -sin(theta),sin(phi)*cos(theta), cos(phi)*cos(theta)]';
 
     cla; % Clear current axes
-    plotRocket3D(cg, Length,T_etob,thrust_array);
+    plotRocket3D(cg, Length,T_etob,thrust_array(i,:));
     pause(0.001);
 end
 
@@ -112,11 +112,25 @@ function plotRocket3D(cg, lengths, Tetob,thrust_array)
      for L=1:4
         plot3([newVertices(L,1);newSupport_end(L,1)],[newVertices(L,2);newSupport_end(L,2)],[newVertices(L,3);newSupport_end(L,3)],'b');
     end
-      hold off;
+
     %plot thrust
 
-    thrust_location=Tetob*[0;0;-halfHeight]+cg'
-    thrust_length=Tetob*[0;0;-halfHeight+0.005*thrust_array(3)]
+    thrust_start=Tetob*[0;0;-halfHeight]+cg';
+    
+    
+    thrust_scaling=0.0005;
+    alpha=thrust_array(1)
+    beta=thrust_array(2)
+    T=thrust_array(3)
+    Tx=-T*sin(alpha)*  thrust_scaling;
+    Ty=-T*cos(alpha)*sin(beta)*  thrust_scaling;
+    Tz=-T*cos(alpha)*cos(beta)*  thrust_scaling;
+
+    thrust_end=Tetob*[Tx;Ty;-halfHeight+Tz]+cg';
+
+   
+    plot3([thrust_start(1);thrust_end(1)],[thrust_start(2);thrust_end(2)],[thrust_start(3);thrust_end(3)],'g')
+          hold off;
     
 end
 
