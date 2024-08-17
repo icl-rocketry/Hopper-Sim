@@ -3,14 +3,17 @@ clc
 clf
 close all
 load("hopper_sim.mat")
-set(0,'defaulttextInterpreter','latex','DefaultLegendInterpreter','latex','DefaultLineLineWidth', 5,'defaultAxesFontSize',11);
+set(0,'defaulttextInterpreter','latex','DefaultLegendInterpreter','latex','DefaultLineLineWidth', 1.5,'defaultAxesFontSize',11);
 out = sim('HopperPlant_Current.slx','StopTime', '300');
 euler_angles=get(out,"euler_angles");
 position_earth=get(out,'position');
-save("hopper_sim","euler_angles","position_earth")
+thrust=get(out,'thrust');
+save("hopper_sim","euler_angles","position_earth","thrust")
 time_array=euler_angles.time;
 euler_angles_array=euler_angles.data;
 position_earth_array=position_earth.data;
+thrust_array=thrust.data;
+
 Length = [0.5 0.5 1.5]; % Side length of the cube
 figure;
 axis equal;
@@ -38,11 +41,11 @@ for i = 1:length(time_array)
     -sin(theta),sin(phi)*cos(theta), cos(phi)*cos(theta)]';
 
     cla; % Clear current axes
-    plotRocket3D(cg, Length,T_etob);
+    plotRocket3D(cg, Length,T_etob,thrust_array);
     pause(0.001);
 end
 
-function plotRocket3D(cg, lengths, Tetob)
+function plotRocket3D(cg, lengths, Tetob,thrust_array)
     % lengths is a vector [length, width, height]
     length = lengths(1);
     width = lengths(2);
@@ -94,20 +97,27 @@ function plotRocket3D(cg, lengths, Tetob)
     for j=5:row
     plot3([nose(1);newVertices(j,1)],[nose(2);newVertices(j,2)],[nose(3);newVertices(j,3)],'r');
     end 
-    hold off;
+  
     
-   support= [
-        -halfLength, -halfWidth, -halfHeight;
-        halfLength, -halfWidth, -halfHeight;
-        halfLength, halfWidth, -halfHeight;
-        -halfLength, halfWidth, -halfHeight;
-    ];
-    %plot landing support
+   support_end=vertices(1:4,:)+[-0.2 -0.2 -0.2; 0.2 -0.2 -0.2; 0.2 0.2 -0.2;-0.2 0.2 -0.2];
+    
+    %rotate support coordinates
     for k=1:4
-
+        newSupport_end(k,:)=(Tetob * support_end(k, :)')';
     end 
 
+    newSupport_end=newSupport_end+cg;
+
+    %plot landing supports
+     for L=1:4
+        plot3([newVertices(L,1);newSupport_end(L,1)],[newVertices(L,2);newSupport_end(L,2)],[newVertices(L,3);newSupport_end(L,3)],'b');
+    end
+      hold off;
     %plot thrust
+
+    thrust_location=Tetob*[0;0;-halfHeight]+cg'
+    thrust_length=Tetob*[0;0;-halfHeight+0.005*thrust_array(3)]
+    
 end
 
 
