@@ -27,6 +27,12 @@ title('3D Wireframe Cube');
 grid on;
 view(3);
 
+plot(time_array,thrust_array(:,1),'--')
+max_angular_alpha=max(gradient(thrust_array(time_array>=1.5,1), time_array(time_array>=1.5)));
+max_angular_beta=max(gradient(thrust_array(time_array>=1.5,2), time_array(time_array>=1.5)));
+
+%% 
+
 % Loop through each time step
 for i = 1:length(time_array)
     cg = position_earth_array(i, 1:3);
