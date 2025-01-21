@@ -4,7 +4,23 @@ clf
 close all
 load("hopper_sim.mat")
 set(0,'defaulttextInterpreter','latex','DefaultLegendInterpreter','latex','DefaultLineLineWidth', 1.5,'defaultAxesFontSize',11);
-out = sim('HopperPlant_Current.slx','StopTime', '300');
+%% % Height controller 
+
+Kp_z=20;
+Ki_z=1.5;
+Kd_z=70;
+height_setpoint=10;
+max_thrust=500;
+
+assignin("base","Kp_z",Kp_z);
+assignin("base","Ki_z",Ki_z);
+assignin("base","Kd_z",Kd_z);
+assignin("base","height_setpoint",height_setpoint);
+assignin("base","max_thrust",max_thrust);
+%% 
+
+
+out = sim('HopperPlant_Current.slx','StopTime', '60');
 euler_angles=get(out,"euler_angles");
 position_earth=get(out,'position');
 thrust=get(out,'thrust');
@@ -30,6 +46,11 @@ view(3);
 % plot(time_array,thrust_array(:,1),'--')
 % max_angular_alpha=max(gradient(thrust_array(time_array>=1.5,1), time_array(time_array>=1.5)));
 % max_angular_beta=max(gradient(thrust_array(time_array>=1.5,2), time_array(time_array>=1.5)));
+
+% figure
+% plot(time_array,position_earth_array(1),"-b")
+% plot(time_array,position_earth_array(2),"--x")
+% plot(time_array,position_earth_array(3),"-.m")
 
 %% 
 
