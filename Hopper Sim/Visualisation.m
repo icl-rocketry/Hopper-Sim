@@ -20,7 +20,7 @@ assignin("base","max_thrust",max_thrust);
 %% 
 
 
-out = sim('HopperPlant_Current.slx','StopTime', '60');
+out = sim('HopperPlant_Current_optimisation.slx','StopTime', '5');
 euler_angles=get(out,"euler_angles");
 position_earth=get(out,'position');
 thrust=get(out,'thrust');
