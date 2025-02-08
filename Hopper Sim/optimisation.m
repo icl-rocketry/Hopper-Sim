@@ -16,7 +16,7 @@ clf
 close all
 global counter
 counter=1;
-height_setpoint=50;
+height_setpoint=20;
 max_thrust=20;
 y_setpoint=2;
 x_setpoint=2;
@@ -26,8 +26,8 @@ x_setpoint=2;
 % RMSE = cost_func(Kp, Ki, Kd);
 
 objective = @(K) cost_func(K(1), K(2), K(3),K(4), K(5), K(6),K(7), K(8), K(9),K(10), K(11), K(12),K(13), K(14), K(15));
-lb = [0, 0, 20,ones(1,6)*-10,ones(1,6)*-10];
-ub = [100 20 200,ones(1,6)*10,ones(1,6)*10];
+lb = [50, 0, 20,ones(1,3)*-5,ones(1,3)*0,ones(1,3)*-5,ones(1,3)*-5];
+ub = [100 5, 100,ones(1,3)*0,ones(1,3)*5,ones(1,3)*0,ones(1,3)*0];
 
 
 param = particleswarm(objective, 15, lb, ub);
@@ -99,30 +99,39 @@ function RMSE = cost_func(Kp, Ki, Kd,Kp_x, Ki_x, Kd_x,Kp_y, Ki_y, Kd_y,Kp_alpha,
     disp(counter)
 end
 %% 
-% Kp_z=94.5595 ;
-% ki_z=0.078559;
-% Kd_z=78.8685;
+% clear
+% clc
+% 
+% Kp_z=90.3674 ;
+% Ki_z=0.35426;
+% Kd_z=50.7347;
 % 
 % 
 % 
-%     assignin('base', 'Kp_x', 1);
-%     assignin('base', 'Ki_x', 1);
-%     assignin('base', 'Kd_x', 1);
+%     assignin('base', 'Kp_x', -0.012062);
+%     assignin('base', 'Ki_x', 0);
+%     assignin('base', 'Kd_x', -0.031068);
 % 
-%      assignin('base', 'Kp_y', 1);
-%     assignin('base', 'Ki_y', 1);
+%      assignin('base', 'Kp_y', 0.021942);
+%     assignin('base', 'Ki_y', 0);
 %     assignin('base', 'Kd_y', 1);
 % 
 % 
-%     assignin('base', 'Kp_alpha', 1);
-%     assignin('base', 'Ki_alpha', 1);
-%     assignin('base', 'Kd_alpha', 1);
+%     assignin('base', 'Kp_alpha', -4.7281);
+%     assignin('base', 'Ki_alpha', -4.9443);
+%     assignin('base', 'Kd_alpha', -1.6789);
 % 
 % 
-%     assignin('base', 'Kp_beta', 1);
-%     assignin('base', 'Ki_beta', 1);
-%     assignin('base', 'Kd_beta', 1);
-% height_setpoint=50;
-% max_thrust=500;
+%     assignin('base', 'Kp_beta', -0.9183);
+%     assignin('base', 'Ki_beta', -0.0041087);
+%     assignin('base', 'Kd_beta', -0.40668);
+% height_setpoint=20;
+% max_thrust=20;
 % y_setpoint=2;
-% x_setpoint=0;
+% x_setpoint=2;
+
+% Kp: 90.3674 , Ki: 0.35426 , Kd: 50.7347 , RMSE: 3.3545
+% x:Kp: -0.012062 , Ki: 0 , Kd: -0.031068 , RMSE: 3.3545
+% y:Kp: 0.021942 , Ki: 0 , Kd: 0.041542 , RMSE: 3.3545
+% alphaKp: -4.7281 , Ki: -4.9443 , Kd: -1.6789 , RMSE: 3.3545
+% betaKp: -0.9183 , Ki: -0.0041087 , Kd: -0.40668 , RMSE: 3.3545

@@ -4,23 +4,62 @@ clf
 close all
 load("hopper_sim.mat")
 set(0,'defaulttextInterpreter','latex','DefaultLegendInterpreter','latex','DefaultLineLineWidth', 1.5,'defaultAxesFontSize',11);
-%% % Height controller 
+% %% % Height controller 
+% 
+% Kp_z=20;
+% Ki_z=1.5;
+% Kd_z=70;
+% height_setpoint=10;
+% max_thrust=500;
+% 
+% assignin("base","Kp_z",Kp_z);
+% assignin("base","Ki_z",Ki_z);
+% assignin("base","Kd_z",Kd_z);
+% assignin("base","height_setpoint",height_setpoint);
+% assignin("base","max_thrust",max_thrust);
 
-Kp_z=20;
-Ki_z=1.5;
-Kd_z=70;
-height_setpoint=10;
-max_thrust=500;
+%% % 
+clear
+clc
 
-assignin("base","Kp_z",Kp_z);
-assignin("base","Ki_z",Ki_z);
-assignin("base","Kd_z",Kd_z);
-assignin("base","height_setpoint",height_setpoint);
-assignin("base","max_thrust",max_thrust);
+Kp_z=90.3674 ;
+Ki_z=0.35426;
+Kd_z=50.7347;
+
+
+
+    assignin('base', 'Kp_x', -0.012062);
+    assignin('base', 'Ki_x', 0);
+    assignin('base', 'Kd_x', -0.031068);
+
+     assignin('base', 'Kp_y', 0.012062);
+    assignin('base', 'Ki_y', 0);
+    assignin('base', 'Kd_y', 0.031068);
+
+
+    assignin('base', 'Kp_alpha', -4.7281);
+    assignin('base', 'Ki_alpha', -4.9443);
+    assignin('base', 'Kd_alpha', -1.6789);
+
+
+    assignin('base', 'Kp_beta', -4.7281);
+    assignin('base', 'Ki_beta', -4.9443);
+    assignin('base', 'Kd_beta', -1.6789);
+height_setpoint=20;
+max_thrust=20;
+y_setpoint=2;
+x_setpoint=2;
+
+% Kp: 90.3674 , Ki: 0.35426 , Kd: 50.7347 , RMSE: 3.3545
+% x:Kp: -0.012062 , Ki: 0 , Kd: -0.031068 , RMSE: 3.3545
+% y:Kp: 0.021942 , Ki: 0 , Kd: 0.041542 , RMSE: 3.3545
+% alphaKp: -4.7281 , Ki: -4.9443 , Kd: -1.6789 , RMSE: 3.3545
+% betaKp: -0.9183 , Ki: -0.0041087 , Kd: -0.40668 , RMSE: 3.3545
+
 %% 
 
 
-out = sim('HopperPlant_Current_optimisation.slx','StopTime', '5');
+out = sim('HopperPlant_Current_optimisation.slx','StopTime', '60');
 euler_angles=get(out,"euler_angles");
 position_earth=get(out,'position');
 thrust=get(out,'thrust');
