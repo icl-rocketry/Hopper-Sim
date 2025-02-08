@@ -19,8 +19,9 @@ AngleCon_btoe=[1 sin(phi)*tan(theta), cos(phi)*tan(theta);
     0, sin(phi)*sec(theta), cos(phi)*sec(theta)];
 EulerAngledot=AngleCon_btoe*[p;q;r];
 
+
 Tx=-T*sin(alpha);
-Ty=T*cos(alpha)*sin(beta); %this should be positive,  but accounted in the gains 
+Ty=-T*cos(alpha)*sin(beta); %this should be positive,  but accounted in the gains 
 Tz=-T*cos(alpha)*cos(beta);
 
 ge=T_etob*[0;0;gb];
@@ -50,23 +51,8 @@ qdot=(M-r*p*(Ia-Izz)-Iadot*q)/Ia;
 rdot=(N-p*q*(Ia-Ia)-Izzdot*r)/Izz;
 
 
-f=[Xdot;Udot;Vdot;Wdot;EulerAngledot;pdot;qdot;rdot];
-x=[x y z U V W phi theta psi p q r ];
-u=[T alpha beta];
+f=[Xdot]
 
-paramValues=[0.296 0.05 0 0 72 1.4 0 0 0];
-f = subs(f, [Ia Izz lx ly lz m mdot Iadot Izzdot], paramValues);      
-f = simplify(f);
-
-A = jacobian(f,x);
-B = jacobian(f,u);
-
-f_xeq = subs(f, x, zeros(1,12)) ;                  
-[T, alpha, beta] = solve(f_xeq == 0, u);     
-input_Eq = double([T alpha beta]);  
-
-Aeq=subs(A,[x u],[zeros(1,12) input_Eq]);
-Beq=subs(B,[x u],[zeros(1,12) input_Eq]);
 %% 
 
 
