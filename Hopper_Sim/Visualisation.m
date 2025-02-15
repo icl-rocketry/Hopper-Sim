@@ -1,0 +1,206 @@
+clear
+clc
+clf
+close all
+load("hopper_sim.mat")
+set(0,'defaulttextInterpreter','latex','DefaultLegendInterpreter','latex','DefaultLineLineWidth', 1.5,'defaultAxesFontSize',11);
+% %% % Height controller 
+% 
+% Kp_z=20;
+% Ki_z=1.5;
+% Kd_z=70;
+% height_setpoint=10;
+% max_thrust=500;
+% 
+% assignin("base","Kp_z",Kp_z);
+% assignin("base","Ki_z",Ki_z);
+% assignin("base","Kd_z",Kd_z);
+% assignin("base","height_setpoint",height_setpoint);
+% assignin("base","max_thrust",max_thrust);
+
+%% % 
+clear
+clc
+
+Kp_z=90.3674 ;
+Ki_z=0.35426;
+Kd_z=50.7347;
+
+
+
+    assignin('base', 'Kp_x', -0.012062);
+    assignin('base', 'Ki_x', 0);
+    assignin('base', 'Kd_x', -0.031068);
+
+     assignin('base', 'Kp_y', 0.012062);
+    assignin('base', 'Ki_y', 0);
+    assignin('base', 'Kd_y', 0.031068);
+
+
+    assignin('base', 'Kp_alpha', -4.7281);
+    assignin('base', 'Ki_alpha', -4.9443);
+    assignin('base', 'Kd_alpha', -1.6789);
+
+
+    assignin('base', 'Kp_beta', -4.7281);
+    assignin('base', 'Ki_beta', -4.9443);
+    assignin('base', 'Kd_beta', -1.6789);
+height_setpoint=20;
+max_thrust=20;
+y_setpoint=2;
+x_setpoint=2;
+
+% Kp: 90.3674 , Ki: 0.35426 , Kd: 50.7347 , RMSE: 3.3545
+% x:Kp: -0.012062 , Ki: 0 , Kd: -0.031068 , RMSE: 3.3545
+% y:Kp: 0.021942 , Ki: 0 , Kd: 0.041542 , RMSE: 3.3545
+% alphaKp: -4.7281 , Ki: -4.9443 , Kd: -1.6789 , RMSE: 3.3545
+% betaKp: -0.9183 , Ki: -0.0041087 , Kd: -0.40668 , RMSE: 3.3545
+
+%% 
+
+
+out = sim('HopperPlant.slx','StopTime', '60');
+euler_angles=get(out,"euler_angles");
+position_earth=get(out,'position');
+thrust=get(out,'thrust');
+save("hopper_sim","euler_angles","position_earth","thrust")
+time_array=euler_angles.time;
+euler_angles_array=euler_angles.data;
+position_earth_array=position_earth.data;
+thrust_array=thrust.data;
+
+Length = [0.5 0.5 1.5]; % Side length of the cube
+figure;
+axis equal;
+ % xlim([-5 5])
+ % ylim([-5 5])
+ % zlim([0 100])
+xlabel('X');
+ylabel('Y');
+zlabel('Z');
+title('3D Wireframe Cube');
+grid on;
+view(3);
+% 
+% plot(time_array,thrust_array(:,1),'--')
+% max_angular_alpha=max(gradient(thrust_array(time_array>=1.5,1), time_array(time_array>=1.5)));
+% max_angular_beta=max(gradient(thrust_array(time_array>=1.5,2), time_array(time_array>=1.5)));
+
+% figure
+% plot(time_array,position_earth_array(1),"-b")
+% plot(time_array,position_earth_array(2),"--x")
+% plot(time_array,position_earth_array(3),"-.m")
+
+%% 
+
+% Loop through each time step
+for i = 1:length(time_array)
+    cg = position_earth_array(i, 1:3);
+    cg(3) = -cg(3); % Adjust z-coordinate
+    cg(2) = -cg(2); % Adjust y-coordinate
+    phi=euler_angles_array(i,1);
+    theta=euler_angles_array(i,2);
+    psi=euler_angles_array(i,3);
+
+    T_etob=[cos(theta)*cos(psi), sin(theta)*sin(phi)*cos(psi)-cos(phi)*sin(psi), cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi);
+    cos(theta)*sin(psi), sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi), cos(phi)*sin(theta)*cos(psi)-sin(phi)*cos(psi);
+    -sin(theta),sin(phi)*cos(theta), cos(phi)*cos(theta)]';
+
+    cla; % Clear current axes
+    plotRocket3D(cg, Length,T_etob,thrust_array(i,:));
+    pause(0.001);
+end
+
+function plotRocket3D(cg, lengths, Tetob,thrust_array)
+    % lengths is a vector [length, width, height]
+    length = lengths(1);
+    width = lengths(2);
+    height = lengths(3);
+
+    % Define the half side lengths
+    halfLength = length / 2;
+    halfWidth = width / 2;
+    halfHeight = height / 2;
+
+    % Define the vertices of the cuboid
+    vertices = [
+        -halfLength, -halfWidth, -halfHeight;
+        halfLength, -halfWidth, -halfHeight;
+        halfLength, halfWidth, -halfHeight;
+        -halfLength, halfWidth, -halfHeight;
+        -halfLength, -halfWidth, halfHeight;
+        halfLength, -halfWidth, halfHeight;
+        halfLength, halfWidth, halfHeight;
+        -halfLength, halfWidth, halfHeight;
+    ];
+
+    % Transform vertices using Tetob matrix
+    [row, ~] = size(vertices);
+    newVertices = zeros(size(vertices));
+    for v = 1:row
+        newVertices(v, :) = (Tetob * vertices(v, :)')';
+    end
+
+    % Shift vertices to be centered at cg
+    newVertices = newVertices + cg;
+
+    % Define the edges of the cuboid
+    edges = [
+        1, 2; 2, 3; 3, 4; 4, 1; % bottom edges
+        5, 6; 6, 7; 7, 8; 8, 5; % top edges
+        1, 5; 2, 6; 3, 7; 4, 8; % vertical edges
+    ];
+
+    nose=Tetob*[0;0;halfHeight+0.5]+cg';
+
+    % Plot body
+    hold on;
+    for i = 1:size(edges, 1)
+        plot3(newVertices(edges(i, :), 1), newVertices(edges(i, :), 2), newVertices(edges(i, :), 3), 'b');
+    end
+
+    %plot nose
+    for j=5:row
+    plot3([nose(1);newVertices(j,1)],[nose(2);newVertices(j,2)],[nose(3);newVertices(j,3)],'r');
+    end 
+  
+    
+   support_end=vertices(1:4,:)+[-0.2 -0.2 -0.2; 0.2 -0.2 -0.2; 0.2 0.2 -0.2;-0.2 0.2 -0.2];
+    
+    %rotate support coordinates
+    for k=1:4
+        newSupport_end(k,:)=(Tetob * support_end(k, :)')';
+    end 
+
+    newSupport_end=newSupport_end+cg;
+
+    %plot landing supports
+     for L=1:4
+        plot3([newVertices(L,1);newSupport_end(L,1)],[newVertices(L,2);newSupport_end(L,2)],[newVertices(L,3);newSupport_end(L,3)],'b');
+    end
+
+    %plot thrust
+
+    thrust_start=Tetob*[0;0;-halfHeight]+cg';
+    
+    
+    thrust_scaling=0.0005;
+    alpha=thrust_array(1)
+    beta=thrust_array(2)
+    T=thrust_array(3)
+    Tx=-T*sin(alpha)*  thrust_scaling;
+    Ty=-T*cos(alpha)*sin(beta)*  thrust_scaling;
+    Tz=-T*cos(alpha)*cos(beta)*  thrust_scaling;
+
+    thrust_end=Tetob*[Tx;Ty;-halfHeight+Tz]+cg';
+
+   
+    plot3([thrust_start(1);thrust_end(1)],[thrust_start(2);thrust_end(2)],[thrust_start(3);thrust_end(3)],'g')
+          hold off;
+    
+end
+
+
+
+
+
