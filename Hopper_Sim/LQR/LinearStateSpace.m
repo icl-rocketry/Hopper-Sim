@@ -3,28 +3,33 @@ clc
 clf
 close all
 
+% Define symbolic variables
 syms x y z U V W p q r phi theta psi real % states
 syms xdot ydot zdot Udot Vdot Wdot pdot qdot rdot phidot thetadot psidot real % state derivatives
 syms m Ia Izz mdot Iadot Izzdot lz g real % constants
 syms T alpha beta real % control inputs
 
-x = [x y z phi theta psi U V W p q r]';
+x = [x y z phi theta psi U V W p q r]'; % State vector
 xeq = zeros(length(x), 1); % Equilibrium states
 u = [T alpha beta]'; % Control input vector
 ueq = [m*g 0 0]'; % Equilibrium inputs
-h = x;
+h = x; % Assume perfect state feedback
 
+% Earth to body vector transformation matrix using Euler angles
 T_etob=[cos(theta)*cos(psi), sin(theta)*sin(phi)*cos(psi)-cos(phi)*sin(psi), cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi);
     cos(theta)*sin(psi), sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi), cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi);
     -sin(theta),sin(phi)*cos(theta), cos(phi)*cos(theta)]';
 
+% Compute velocity in inertial frame
 Xdot=(T_etob')*[U;V;W];
 
+% Compute rates of change of Euler angles from body rotation rates
 AngleCon_btoe=[1 sin(phi)*tan(theta), cos(phi)*tan(theta);
     0, cos(phi), -sin(phi); ...
     0, sin(phi)*sec(theta), cos(phi)*sec(theta)];
 EulerAngledot=AngleCon_btoe*[p;q;r];
 
+% Assemble state derivative function
 f = [
 (m*(V*r-W*q)-mdot*U-m*g*sin(theta)-T*sin(alpha))/m;
 (m*(W*p-U*r)-mdot*V+m*g*cos(theta)*sin(phi)+T*cos(alpha)*sin(beta))/m;
@@ -33,19 +38,21 @@ f = [
 (-lz*T*sin(alpha)-p*r*(Ia-Izz)-Iadot*q)/Ia;
 (-Izzdot*r)/Izz;
 ];
-
 f = [Xdot; EulerAngledot; f];
 
+% Compute symbolic Jacobians
 Axu = jacobian(f,x);
 Bxu = jacobian(f,u);
 Cxu = jacobian(h,x);
 Dxu = jacobian(h,u);
 
+% Substitute equilibrium states and controls
 A = subs(Axu,[x; u],[xeq; ueq]);
 B = subs(Bxu,[x; u],[xeq; ueq]);
 C = subs(Cxu,[x; u],[xeq; ueq]);
 D = subs(Dxu,[x; u],[xeq; ueq]);
 
+% Define plant parameters
 mval        = 1.4;
 mdotval     = 0;
 Iaval       = 0.296;
@@ -57,41 +64,50 @@ gval        = 9.81;
 
 csts = [mval; Iaval; Izzval; mdotval; Iadotval; Izzdotval; lzval; gval];
 
+% Convert symbolic matrices to double-precision
 A = double(subs(A, [m; Ia; Izz; mdot; Iadot; Izzdot; lz; g], csts));
 B = double(subs(B, [m; Ia; Izz; mdot; Iadot; Izzdot; lz; g], csts));
 C = double(subs(C, [m; Ia; Izz; mdot; Iadot; Izzdot; lz; g], csts));
 D = double(subs(D, [m; Ia; Izz; mdot; Iadot; Izzdot; lz; g], csts));
 
+% Reduce matrices to exclude yaw and yaw rate for reachability
 Ared = A([1:5,7:end-1], [1:5,7:end-1]);
 Bred = B([1:5,7:end-1], :);
 
+% Check reachability and observability
 [reachable,observable] = isReachOrObsv(Ared,Bred,eye(10));
 
+% Augment matrices for position integral action
 Aaug = [Ared, zeros(10,3); eye(3), zeros(3,7), zeros(3)];
 Baug = [Bred; zeros(3)];
+Ts = 0.005; % Sample time
 
-Ts = 0.005;
-
+% LQR gains
 Q = eye(13);
-
 R = diag(ones(1,3));
 
+% Compute discrete time LQR solution
 [Kd, S, P] = lqrd(Aaug, Baug, Q, R, Ts);
 
+% Separate gains into state gains and integral gains
 K = Kd(:,1:10);
 Ki = Kd(:,11:13);
 
 params = [mval; mdotval; Iaval; Iadotval; Izzval; Izzdotval; lzval];
 
+% Compute feedforward gain using optimal control law
 Cred = [eye(3), zeros(3,7)];
 Kf = -(Cred*((Ared-Bred*K)\Bred))\eye(3);
 
+% Define control parameters for Simulink
 Teq = double(subs(ueq(1), [m; g], [mval; gval]));
 Tmax = 20;
 gimble_max = 20;
 
+% Run simulation
 out = sim('Hopper_lqr', 'StartTime', '0', 'StopTime', '60', 'FixedStep', num2str(Ts));
 
+% Plot results
 figure
 ylabs = {'x', 'y', 'z'};
 for i = 1:3
