@@ -107,7 +107,7 @@ gimble_max = 20;
 % Run simulation
 out = sim('Hopper_lqr', 'StartTime', '0', 'StopTime', '60', 'FixedStep', num2str(Ts));
 
-% Plot results
+%% Plot results
 figure
 ylabs = {'x', 'y', 'z'};
 for i = 1:3
