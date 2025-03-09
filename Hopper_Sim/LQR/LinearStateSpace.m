@@ -83,8 +83,13 @@ Baug = [Bred; zeros(3)];
 Ts = 0.005; % Sample time
 
 % LQR gains
-Q = eye(13);
-R = diag(ones(1,3));
+Q = diag([1 1 16,...
+          3 3,...
+          1 1 8, ...
+          0.5 0.5,...
+          0.04 0.04 0.1]);
+R = diag([1 1.2 1.2]);
+eta = [0.6, 0.6, 10];
 
 % Compute discrete time LQR solution
 [Kd, S, P] = lqrd(Aaug, Baug, Q, R, Ts);
@@ -101,8 +106,6 @@ Kf = -(Cred*((Ared-Bred*K)\Bred))\eye(3);
 
 % Define control parameters for Simulink
 Teq = double(subs(ueq(1), [m; g], [mval; gval]));
-Tmax = 20;
-gimble_max = 20;
 
 % Run simulation
 out = sim('Hopper_lqr', 'StartTime', '0', 'StopTime', '60', 'FixedStep', num2str(Ts));
@@ -112,7 +115,7 @@ figure
 ylabs = {'x', 'y', 'z'};
 for i = 1:3
     subplot(1,3,i)
-    plot(out.states.time, squeeze(out.states.signals.values(i,1,:)))
+    plot(out.states.time, out.states.signals.values(:,i))
     hold on; grid on; box on
     plot(out.refs.time, out.refs.signals.values(:,i))
     xlabel('t'); ylabel(ylabs{i})
@@ -122,17 +125,156 @@ figure
 ylabs = {'phi', 'theta', 'psi', 'U', 'V', 'W', 'p', 'q', 'r'};
 for i = 1:9
     subplot(3,3,i)
-    plot(out.states.time, squeeze(out.states.signals.values(3+i,1,:)))
+    plot(out.states.time, out.states.signals.values(:,3+i))
     xlabel('t'); ylabel(ylabs{i})
     grid on; box on
 end
 
 figure
 ylabs = {'T', 'alpha', 'beta'};
-ylims = {[0 Tmax], deg2rad([-5 5]), deg2rad([-5 5])};
+%ylims = {[0 Tmax], deg2rad([-5 5]), deg2rad([-5 5])};
 for i = 1:3
     subplot(1,3,i)
-    plot(out.controls.time, squeeze(out.controls.signals.values(i,1,:)))
+    plot(out.controls.time, out.controls.signals.values(:,i))
     grid on; box on
-    xlabel('t'); ylabel(ylabs{i}); ylim(ylims{i})
+    xlabel('t'); ylabel(ylabs{i}); %ylim(ylims{i})
+end
+
+%%
+
+t = out.states.time;
+x = out.states.signals.values(:,1);
+y = out.states.signals.values(:,2);
+z = out.states.signals.values(:,3);
+phi = out.states.signals.values(:,4);
+theta = out.states.signals.values(:,5);
+psi = out.states.signals.values(:,6);
+thrust = out.controls.signals.values(:,1);
+alpha = out.controls.signals.values(:,2);
+beta = out.controls.signals.values(:,3);
+
+
+euler_angles_array=[phi, theta, psi];
+position_earth_array=[x, y, z];
+time_array=t;
+thrust_array = [thrust, alpha, beta];
+
+Length = [0.2 0.2 0.6]; % Side length of the cube
+figure;
+axis equal;
+xlim([-5 5])
+ylim([-5 5])
+zlim([0 20])
+xlabel('X');
+ylabel('Y');
+zlabel('Z');
+title('3D Wireframe Cube');
+grid on;
+view(3);
+
+% Loop through each time step
+for i = 1:length(time_array)
+    cg = position_earth_array(i, 1:3);
+    cg(3) = -cg(3); % Adjust z-coordinate
+    cg(2) = -cg(2); % Adjust y-coordinate
+    phi=euler_angles_array(i,1);
+    theta=euler_angles_array(i,2);
+    psi=euler_angles_array(i,3);
+
+    T_etob=[cos(theta)*cos(psi), sin(theta)*sin(phi)*cos(psi)-cos(phi)*sin(psi), cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi);
+    cos(theta)*sin(psi), sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi), cos(phi)*sin(theta)*cos(psi)-sin(phi)*cos(psi);
+    -sin(theta),sin(phi)*cos(theta), cos(phi)*cos(theta)]';
+
+    cla; % Clear current axes
+    plotRocket3D(cg, Length,T_etob,thrust_array(i,:));
+    pause(0.001);
+end
+
+function plotRocket3D(cg, lengths, Tetob,thrust_array)
+    % lengths is a vector [length, width, height]
+    length = lengths(1);
+    width = lengths(2);
+    height = lengths(3);
+
+    % Define the half side lengths
+    halfLength = length / 2;
+    halfWidth = width / 2;
+    halfHeight = height / 2;
+
+    % Define the vertices of the cuboid
+    vertices = [
+        -halfLength, -halfWidth, -halfHeight;
+        halfLength, -halfWidth, -halfHeight;
+        halfLength, halfWidth, -halfHeight;
+        -halfLength, halfWidth, -halfHeight;
+        -halfLength, -halfWidth, halfHeight;
+        halfLength, -halfWidth, halfHeight;
+        halfLength, halfWidth, halfHeight;
+        -halfLength, halfWidth, halfHeight;
+    ];
+
+    % Transform vertices using Tetob matrix
+    [row, ~] = size(vertices);
+    newVertices = zeros(size(vertices));
+    for v = 1:row
+        newVertices(v, :) = (Tetob * vertices(v, :)')';
+    end
+
+    % Shift vertices to be centered at cg
+    newVertices = newVertices + cg;
+
+    % Define the edges of the cuboid
+    edges = [
+        1, 2; 2, 3; 3, 4; 4, 1; % bottom edges
+        5, 6; 6, 7; 7, 8; 8, 5; % top edges
+        1, 5; 2, 6; 3, 7; 4, 8; % vertical edges
+    ];
+
+    nose=Tetob*[0;0;halfHeight+0.5]+cg';
+
+    % Plot body
+    hold on;
+    for i = 1:size(edges, 1)
+        plot3(newVertices(edges(i, :), 1), newVertices(edges(i, :), 2), newVertices(edges(i, :), 3), 'b');
+    end
+
+    %plot nose
+    for j=5:row
+    plot3([nose(1);newVertices(j,1)],[nose(2);newVertices(j,2)],[nose(3);newVertices(j,3)],'r');
+    end 
+  
+    
+   support_end=vertices(1:4,:)+[-0.2 -0.2 -0.2; 0.2 -0.2 -0.2; 0.2 0.2 -0.2;-0.2 0.2 -0.2];
+    
+    %rotate support coordinates
+    for k=1:4
+        newSupport_end(k,:)=(Tetob * support_end(k, :)')';
+    end 
+
+    newSupport_end=newSupport_end+cg;
+
+    %plot landing supports
+     for L=1:4
+        plot3([newVertices(L,1);newSupport_end(L,1)],[newVertices(L,2);newSupport_end(L,2)],[newVertices(L,3);newSupport_end(L,3)],'b');
+    end
+
+    %plot thrust
+
+    thrust_start=Tetob*[0;0;-halfHeight]+cg';
+    
+    
+    thrust_scaling=0.0005;
+    alpha=thrust_array(1);
+    beta=thrust_array(2);
+    T=thrust_array(3);
+    Tx=-T*sin(alpha)*  thrust_scaling;
+    Ty=-T*cos(alpha)*sin(beta)*  thrust_scaling;
+    Tz=-T*cos(alpha)*cos(beta)*  thrust_scaling;
+
+    thrust_end=Tetob*[Tx;Ty;-halfHeight+Tz]+cg';
+
+   
+    plot3([thrust_start(1);thrust_end(1)],[thrust_start(2);thrust_end(2)],[thrust_start(3);thrust_end(3)],'g')
+          hold off;
+    
 end
