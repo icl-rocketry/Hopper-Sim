@@ -185,9 +185,9 @@ function plotRocket3D(cg, lengths, Tetob,thrust_array)
     
     
     thrust_scaling=0.0005;
-    alpha=thrust_array(1)
-    beta=thrust_array(2)
-    T=thrust_array(3)
+    alpha=thrust_array(1);
+    beta=thrust_array(2);
+    T=thrust_array(3);
     Tx=-T*sin(alpha)*  thrust_scaling;
     Ty=-T*cos(alpha)*sin(beta)*  thrust_scaling;
     Tz=-T*cos(alpha)*cos(beta)*  thrust_scaling;
