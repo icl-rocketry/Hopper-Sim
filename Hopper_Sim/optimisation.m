@@ -99,36 +99,37 @@ function RMSE = cost_func(Kp, Ki, Kd,Kp_x, Ki_x, Kd_x,Kp_y, Ki_y, Kd_y,Kp_alpha,
     disp(counter)
 end
 %% 
-% clear
-% clc
-% 
-% Kp_z=90.3674 ;
-% Ki_z=0.35426;
-% Kd_z=50.7347;
-% 
-% 
-% 
-%     assignin('base', 'Kp_x', -0.012062);
-%     assignin('base', 'Ki_x', 0);
-%     assignin('base', 'Kd_x', -0.031068);
-% 
-%      assignin('base', 'Kp_y', 0.021942);
-%     assignin('base', 'Ki_y', 0);
-%     assignin('base', 'Kd_y', 1);
-% 
-% 
-%     assignin('base', 'Kp_alpha', -4.7281);
-%     assignin('base', 'Ki_alpha', -4.9443);
-%     assignin('base', 'Kd_alpha', -1.6789);
-% 
-% 
-%     assignin('base', 'Kp_beta', -0.9183);
-%     assignin('base', 'Ki_beta', -0.0041087);
-%     assignin('base', 'Kd_beta', -0.40668);
-% height_setpoint=20;
-% max_thrust=20;
-% y_setpoint=2;
-% x_setpoint=2;
+clear
+clc
+
+Kp_z=90.3674 ;
+Ki_z=0.35426;
+Kd_z=50.7347;
+
+
+
+    assignin('base', 'Kp_x', -0.012062);
+    assignin('base', 'Ki_x', 0);
+    assignin('base', 'Kd_x', -0.031068);
+
+     assignin('base', 'Kp_y', 0.012062);
+    assignin('base', 'Ki_y', 0);
+    assignin('base', 'Kd_y', 0.031068);
+
+
+    assignin('base', 'Kp_alpha', -4.7281);
+    assignin('base', 'Ki_alpha', -4.9443);
+    assignin('base', 'Kd_alpha', -1.6789);
+
+
+    assignin('base', 'Kp_beta', -4.7281);
+    assignin('base', 'Ki_beta', -4.9443);
+    assignin('base', 'Kd_beta', -1.6789);
+
+max_thrust=20;
+y_setpoint=2;
+x_setpoint=2;
+height_setpoint=20;
 
 % Kp: 90.3674 , Ki: 0.35426 , Kd: 50.7347 , RMSE: 3.3545
 % x:Kp: -0.012062 , Ki: 0 , Kd: -0.031068 , RMSE: 3.3545

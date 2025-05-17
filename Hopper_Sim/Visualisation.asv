@@ -28,10 +28,10 @@ Kd_z=50.7347;
 
 
 
-    assignin('base', 'Kp_x', -0.020062);
-    assignin('base', 'Ki_x', -0.0008);
+    assignin('base', 'Kp_x', -0.011062);
+    assignin('base', 'Ki_x', -0.000);
     % assignin('base', 'Kd_x', -0.031068);
-    assignin('base', 'Kd_x', -0.035068);
+    assignin('base', 'Kd_x', -0.034068);
 
      assignin('base', 'Kp_y', 0.012062);
     assignin('base', 'Ki_y', 0);
