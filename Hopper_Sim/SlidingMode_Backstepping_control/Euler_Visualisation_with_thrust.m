@@ -4,7 +4,7 @@ P = rocketConfigEuler();
 assignin('base','P',P);
 
 % 2) Load & simulate the model, with StructureWithTime output
-model = 'sixDOFTrial_Euler';
+model = 'SixDOFFINAL';
 load_system(model);
 simOut = sim(model,...
     'StopTime'       ,'10',...
